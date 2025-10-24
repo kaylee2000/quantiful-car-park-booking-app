@@ -1,0 +1,11 @@
+{
+  "bookings": [
+    {
+      "date": "2025-12-03",
+      "userName": "joe",
+      "userEmail": "joe@gmail.com",
+      "id": "2005b95f-f3d2-4bca-adf1-829db85e1d84",
+      "createdAt": "2025-10-24T22:57:05.247Z"
+    }
+  ]
+}
