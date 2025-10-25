@@ -1,65 +1,178 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import BookingCalendar from '@/components/BookingCalendar';
+import BookingModal from '@/components/BookingModal';
+import CancelBookingModal from '@/components/CancelBookingModal';
+import { Booking } from '@/lib/types';
 
 export default function Home() {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+
+  // Fetch all bookings
+  const fetchBookings = async () => {
+    try {
+      const response = await fetch('/api/bookings');
+      if (!response.ok) throw new Error('Failed to fetch bookings');
+      const data = await response.json();
+      setBookings(data.bookings || []);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      setMessage({ type: 'error', text: 'Failed to load bookings' });
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const handleDateClick = (date: string, isBooked: boolean) => {
+    if (isBooked) {
+      // Find the booking for this date
+      const booking = bookings.find(b => b.date === date);
+      if (booking) {
+        setSelectedBooking(booking);
+        setIsCancelModalOpen(true);
+      }
+    } else {
+      // Open booking modal for available date
+      setSelectedDate(date);
+      setIsBookingModalOpen(true);
+    }
+  };
+
+  // Create a new booking
+  const handleCreateBooking = async (
+    bookingData: Omit<Booking, 'id' | 'createdAt'>
+  ) => {
+    setIsLoading(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch('/api/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create booking');
+      }
+
+      setMessage({ type: 'success', text: 'Booking created successfully!' });
+      setIsBookingModalOpen(false);
+      await fetchBookings();
+    } catch (error) {
+      console.error('Error creating booking:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to create booking';
+      setMessage({ type: 'error', text: errorMessage });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Cancel a booking
+  const handleCancelBooking = async () => {
+    if (!selectedBooking) return;
+
+    setIsLoading(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch(`/api/bookings/${selectedBooking.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to cancel booking');
+      }
+
+      setMessage({ type: 'success', text: 'Booking cancelled successfully!' });
+      setIsCancelModalOpen(false);
+      setSelectedBooking(null);
+      await fetchBookings();
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to cancel booking';
+      setMessage({ type: 'error', text: errorMessage });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            Car Park Booking
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-gray-600">
+            Click on dates to book or cancel your slot
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* Message Display */}
+        {message && (
+          <div
+            className={`mb-6 p-4 rounded-lg ${
+              message.type === 'success'
+                ? 'bg-green-100 text-green-800 border border-green-400'
+                : 'bg-red-100 text-red-800 border border-red-400'
+            }`}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {message.text}
+          </div>
+        )}
+
+        {/* Calendar View - Main Content */}
+        <div className="mb-6">
+          <BookingCalendar bookings={bookings} onDateClick={handleDateClick} />
         </div>
-      </main>
+
+        {/* Footer */}
+        <div className="text-center text-sm text-gray-500 mt-8">
+          <p>Shared company car park slot • One booking per date</p>
+        </div>
+      </div>
+
+      {/* Booking Modal */}
+      <BookingModal
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        onSubmit={handleCreateBooking}
+        selectedDate={selectedDate}
+        isLoading={isLoading}
+      />
+
+      {/* Cancel Booking Modal */}
+      <CancelBookingModal
+        isOpen={isCancelModalOpen}
+        onClose={() => {
+          setIsCancelModalOpen(false);
+          setSelectedBooking(null);
+        }}
+        onConfirm={handleCancelBooking}
+        booking={selectedBooking}
+        isLoading={isLoading}
+      />
     </div>
   );
 }
