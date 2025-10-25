@@ -135,6 +135,45 @@ describe('Booking Service', () => {
 
       expect(mockWriteBookingsFile).not.toHaveBeenCalled();
     });
+
+    it('should throw error for invalid date format', async () => {
+      mockReadBookingsFile.mockResolvedValueOnce(mockBookings);
+      await expect(
+        createBooking({
+          date: 'invalid-date',
+          userName: 'Bob Wilson',
+          userEmail: 'bob@company.com',
+        })
+      ).rejects.toThrow('Invalid date');
+
+      expect(mockWriteBookingsFile).not.toHaveBeenCalled();
+    });
+
+    it('should throw error for invalid calendar date', async () => {
+      mockReadBookingsFile.mockResolvedValueOnce(mockBookings);
+      await expect(
+        createBooking({
+          date: '2025-02-30', // Feb 30 doesn't exist
+          userName: 'Bob Wilson',
+          userEmail: 'bob@company.com',
+        })
+      ).rejects.toThrow('Invalid date');
+
+      expect(mockWriteBookingsFile).not.toHaveBeenCalled();
+    });
+
+    it('should throw error for invalid month', async () => {
+      mockReadBookingsFile.mockResolvedValueOnce(mockBookings);
+      await expect(
+        createBooking({
+          date: '2025-13-15', // Month 13 doesn't exist
+          userName: 'Bob Wilson',
+          userEmail: 'bob@company.com',
+        })
+      ).rejects.toThrow('Invalid date');
+
+      expect(mockWriteBookingsFile).not.toHaveBeenCalled();
+    });
   });
 
   describe('deleteBooking', () => {
