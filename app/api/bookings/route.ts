@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if date is in the past
-    const bookingDate = new Date(body.date);
+    const bookingDate = new Date(body.date + 'T00:00:00'); // Parse as midnight in local time
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
