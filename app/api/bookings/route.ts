@@ -53,6 +53,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate name length (max 100 chars)
+    if (body.userName.length > 100) {
+      return NextResponse.json(
+        { error: 'Name is too long (max 100 characters)' } as ErrorResponse,
+        { status: 400 }
+      );
+    }
+
+    // Validate email length (max 254 chars per RFC)
+    if (body.userEmail.length > 254) {
+      return NextResponse.json(
+        { error: 'Email is too long (max 254 characters)' } as ErrorResponse,
+        { status: 400 }
+      );
+    }
+
     // Check if date is in the past
     const bookingDate = new Date(body.date + 'T00:00:00'); // Parse as midnight in local time
     const today = new Date();
@@ -71,13 +87,17 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating booking:', error);
 
-    if (
-      error instanceof Error &&
-      error.message === 'This date is already booked'
-    ) {
-      return NextResponse.json({ error: error.message } as ErrorResponse, {
-        status: 409,
-      });
+    if (error instanceof Error) {
+      if (error.message === 'This date is already booked') {
+        return NextResponse.json({ error: error.message } as ErrorResponse, {
+          status: 409,
+        });
+      }
+      if (error.message.includes('Invalid date')) {
+        return NextResponse.json({ error: error.message } as ErrorResponse, {
+          status: 400,
+        });
+      }
     }
 
     return NextResponse.json(
